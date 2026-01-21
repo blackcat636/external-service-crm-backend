@@ -19,6 +19,31 @@ This is a NestJS-based external service that integrates with the main CRM server
 - ✅ Health and readiness checks
 - ✅ Swagger API documentation
 
+## 📖 Developer Documentation
+
+### For AI Agents
+
+If you are an AI agent helping a programmer work with the backend project, please read:
+
+**English:**
+1. **[AI_AGENT_RULES_EN.md](./AI_AGENT_RULES_EN.md)** ⚠️ - **START HERE!** Short list of rules
+2. **[AI_AGENT_GUIDE_EN.md](./AI_AGENT_GUIDE_EN.md)** - Full guide with all rules and examples
+3. **[AI_AGENT_QUICK_REFERENCE_EN.md](./AI_AGENT_QUICK_REFERENCE_EN.md)** - Quick reference for quick start
+4. **[AI_AGENT_CODE_EXAMPLES_EN.md](./AI_AGENT_CODE_EXAMPLES_EN.md)** - Ready-to-use code examples for copying
+
+**Ukrainian:**
+1. **[AI_AGENT_RULES.md](./AI_AGENT_RULES.md)** ⚠️ - **ПОЧНІТЬ З ЦЬОГО!** Короткий список правил
+2. **[AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md)** - Повна інструкція з усіма правилами та прикладами
+3. **[AI_AGENT_QUICK_REFERENCE.md](./AI_AGENT_QUICK_REFERENCE.md)** - Швидкий довідник для швидкого початку
+4. **[AI_AGENT_CODE_EXAMPLES.md](./AI_AGENT_CODE_EXAMPLES.md)** - Готові приклади коду для копіювання
+
+> **Important**: 
+> - DO NOT change authentication logic (`src/auth/`, `src/services/main-server-client.service.ts`)
+> - Use `UserContextService` to get `userLogin` from token
+> - Use `N8NWebhookService` for n8n webhook calls
+> - Use `MainServerClientService` for main server communication
+> - Always use `JwtAuthGuard` for protected routes
+
 ## Installation
 
 1. **Clone and install dependencies:**
