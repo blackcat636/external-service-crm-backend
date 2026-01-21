@@ -538,7 +538,16 @@ export class ContentZavodController {
         });
       }
 
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+
       const result = await this.telegramService.makePostTextUnique(
+        serviceToken,
         userId,
         dto,
         telegramUsername,
