@@ -18,6 +18,7 @@ import {
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RequestWithToken } from '../auth/interfaces/request-with-token.interface';
+import { requireServiceToken } from '../auth/utils/extract-token.util';
 import { BalanceApiService } from '../services/balance-api.service';
 import { AnalyticsService } from '../services/analytics.service';
 import { MainServerClientService } from '../services/main-server-client.service';
@@ -39,9 +40,10 @@ export class OperationsController {
   @ApiOperation({ summary: 'Get user profile' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@Res() res: Response) {
+  async getProfile(@Req() req: RequestWithToken, @Res() res: Response) {
     try {
-      const result = await this.mainServerClient.getUserProfile();
+      const serviceToken = requireServiceToken(req);
+      const result = await this.mainServerClient.getUserProfile(serviceToken);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -55,9 +57,10 @@ export class OperationsController {
   @ApiOperation({ summary: 'Get user balances' })
   @ApiResponse({ status: 200, description: 'Balances retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getBalances(@Res() res: Response) {
+  async getBalances(@Req() req: RequestWithToken, @Res() res: Response) {
     try {
-      const result = await this.balanceApi.getUserBalances();
+      const serviceToken = requireServiceToken(req);
+      const result = await this.balanceApi.getUserBalances(serviceToken);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -73,12 +76,16 @@ export class OperationsController {
   @ApiResponse({ status: 400, description: 'Invalid input or insufficient funds' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async processPayment(
+    @Req() req: RequestWithToken,
     @Body() data: ChargeBalanceDto,
     @Res() res: Response,
   ) {
     try {
+      const serviceToken = requireServiceToken(req);
+
       // 1. Check if user has sufficient funds
       const hasFunds = await this.balanceApi.checkSufficientFunds(
+        serviceToken,
         data.currencyCode,
         data.amount,
       );
@@ -91,7 +98,7 @@ export class OperationsController {
       }
 
       // 2. Charge balance
-      const chargeResult = await this.balanceApi.chargeBalance({
+      const chargeResult = await this.balanceApi.chargeBalance(serviceToken, {
         amount: data.amount,
         currencyCode: data.currencyCode,
         referenceId: data.referenceId,
@@ -105,7 +112,7 @@ export class OperationsController {
 
       // 3. Send analytics event
       try {
-        await this.analytics.sendEvent({
+        await this.analytics.sendEvent(serviceToken, {
           eventType: 'payment.processed',
           data: {
             amount: data.amount,
@@ -145,11 +152,13 @@ export class OperationsController {
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async sendAnalyticsEvent(
+    @Req() req: RequestWithToken,
     @Body() event: AnalyticsEventDto,
     @Res() res: Response,
   ) {
     try {
-      const result = await this.analytics.sendEvent(event);
+      const serviceToken = requireServiceToken(req);
+      const result = await this.analytics.sendEvent(serviceToken, event);
       return res.status(result.status || 200).json(result);
     } catch (error) {
       throw new HttpException(
@@ -165,11 +174,13 @@ export class OperationsController {
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async sendAnalyticsBatch(
+    @Req() req: RequestWithToken,
     @Body() batch: AnalyticsBatchDto,
     @Res() res: Response,
   ) {
     try {
-      const result = await this.analytics.sendBatch(batch.events);
+      const serviceToken = requireServiceToken(req);
+      const result = await this.analytics.sendBatch(serviceToken, batch.events);
       return res.status(result.status || 200).json(result);
     } catch (error) {
       throw new HttpException(

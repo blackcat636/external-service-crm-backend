@@ -107,10 +107,7 @@ export class AuthService {
         this.logger.log(`User ID: ${userId}`);
         this.logger.log(`Service Name: ${serviceName || 'not provided'}`);
         
-        // Set token in MainServerClientService for future requests
-        this.mainServerClient.setToken(serviceToken);
-        this.logger.log(`Service token stored in MainServerClientService`);
-        
+        // Token is returned to frontend, no need to store globally
         this.logger.log('=== SSO Exchange Request Completed Successfully ===');
         
         return {
@@ -191,37 +188,21 @@ export class AuthService {
   }
 
   /**
-   * Check if current token is valid
+   * Check if token is valid
+   * @param serviceToken - Service token to validate
    */
-  async checkAuth(): Promise<boolean> {
-    const token = this.mainServerClient.getToken();
-    if (!token) {
+  async checkAuth(serviceToken: string): Promise<boolean> {
+    if (!serviceToken) {
       return false;
     }
 
     try {
       // Try to get user profile to validate token
-      await this.mainServerClient.getUserProfile();
+      await this.mainServerClient.getUserProfile(serviceToken);
       return true;
     } catch (error) {
       this.logger.warn('Token validation failed');
       return false;
     }
-  }
-
-  /**
-   * Set service token (for backend-to-backend communication)
-   */
-  setServiceToken(token: string): void {
-    this.mainServerClient.setToken(token);
-    this.logger.log('Service token set via AuthService');
-  }
-
-  /**
-   * Clear service token
-   */
-  clearToken(): void {
-    this.mainServerClient.clearToken();
-    this.logger.log('Service token cleared');
   }
 }

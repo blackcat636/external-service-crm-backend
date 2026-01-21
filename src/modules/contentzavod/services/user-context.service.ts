@@ -14,7 +14,7 @@ export class UserContextService {
    * @param userId - User ID from JWT token
    * @param email - Email from JWT token (used as fallback if API call fails)
    */
-  async getUserLogin(userId?: number, email?: string): Promise<string | null> {
+  async getUserLogin(serviceToken: string, userId?: number, email?: string): Promise<string | null> {
     // If userId provided and in cache, return cached value
     if (userId && this.userLoginCache.has(userId)) {
       const cached = this.userLoginCache.get(userId);
@@ -26,7 +26,7 @@ export class UserContextService {
 
     try {
       // Get user profile from main server
-      const profileResult = await this.mainServerClient.getUserProfile();
+      const profileResult = await this.mainServerClient.getUserProfile(serviceToken);
 
       if (profileResult.status === 200 && profileResult.data) {
         const userData = profileResult.data as any;
@@ -66,8 +66,8 @@ export class UserContextService {
   /**
    * Get userLogin from JWT token payload (user ID and email)
    */
-  async getUserLoginFromToken(userId: number, email?: string): Promise<string | null> {
-    return this.getUserLogin(userId, email);
+  async getUserLoginFromToken(serviceToken: string, userId: number, email?: string): Promise<string | null> {
+    return this.getUserLogin(serviceToken, userId, email);
   }
 
   /**

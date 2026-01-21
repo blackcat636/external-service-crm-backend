@@ -6,6 +6,16 @@
 
 **This backend service can be cloned and adapted for different projects with new functionality. BUT the SSO authentication mechanism, JWT validation, and main server integration MUST remain unchanged.**
 
+### ⚠️ IMPORTANT: Service Token Management
+
+**Service tokens are NOT stored globally anymore!** After SSO exchange, the token is returned to the frontend and stored in `localStorage`. Each API request must include the token in the `Authorization: Bearer <token>` header. The backend extracts the token from each request and passes it to services.
+
+**Key changes:**
+- `MainServerClientService` methods now require `serviceToken` as first parameter
+- `UserContextService.getUserLoginFromToken()` now requires `serviceToken` as first parameter
+- Use `requireServiceToken(req)` or `extractServiceToken(req)` from `src/auth/utils/extract-token.util.ts` to extract tokens
+- No global token storage - each request uses its own token
+
 ### What can be changed:
 - ✅ All business logic in modules (e.g., `modules/contentzavod/`)
 - ✅ New modules can be created
@@ -151,6 +161,27 @@ JWT_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----...
 
 If you are creating a **new module** or **new protected route**, you **MUST** integrate the existing authentication mechanism. **DO NOT create a new authentication mechanism!**
 
+### Service Token Extraction
+
+**IMPORTANT:** All `MainServerClientService` methods and `UserContextService.getUserLoginFromToken()` now require `serviceToken` as the first parameter. Extract it from the request:
+
+```typescript
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// In controller method
+async getData(@Req() req: RequestWithToken, @Res() res: Response) {
+  // Extract service token from Authorization header
+  const serviceToken = requireServiceToken(req);
+  
+  // Pass serviceToken to services
+  const result = await this.service.getData(serviceToken, userId, email);
+}
+```
+
+**Helper functions:**
+- `requireServiceToken(req)` - Extracts token and throws error if not found (use for required tokens)
+- `extractServiceToken(req)` - Extracts token or returns null (use for optional tokens)
+
 ### Creating a New Protected Route
 
 **ALWAYS use `JwtAuthGuard` for protected routes:**
@@ -185,7 +216,10 @@ export class MyModuleController {
       });
     }
 
-    // Your business logic here
+    // Extract service token from Authorization header
+    const serviceToken = requireServiceToken(req);
+
+    // Your business logic here - pass serviceToken to services
     
     return res.status(200).json({
       status: 200,
@@ -209,9 +243,9 @@ export class MyService {
     private readonly userContext: UserContextService,
   ) {}
 
-  async getData(userId: number, email?: string) {
-    // ✅ REQUIRED: Get userLogin from token
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getData(serviceToken: string, userId: number, email?: string) {
+    // ✅ REQUIRED: Get userLogin from token - serviceToken is first parameter
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     
     if (!userLogin) {
       throw new HttpException(
@@ -275,27 +309,29 @@ Before creating a new protected route:
 
 ### Available Methods
 
+**⚠️ IMPORTANT:** All methods now require `serviceToken` as the first parameter!
+
 ```typescript
 // User endpoints
-await mainServerClient.getUserProfile();
-await mainServerClient.updateUserProfile(data);
-await mainServerClient.getUserStructure();
-await mainServerClient.getUserPermissions();
+await mainServerClient.getUserProfile(serviceToken);
+await mainServerClient.updateUserProfile(serviceToken, data);
+await mainServerClient.getUserStructure(serviceToken);
+await mainServerClient.getUserPermissions(serviceToken);
 
 // Balance endpoints
-await mainServerClient.getUserBalances();
-await mainServerClient.getBalanceByCurrency(currency);
-await mainServerClient.getTransactions(params);
-await mainServerClient.chargeBalance(data);
-await mainServerClient.getBalanceSettings();
-await mainServerClient.updateBalanceSettings(data);
+await mainServerClient.getUserBalances(serviceToken);
+await mainServerClient.getBalanceByCurrency(serviceToken, currency);
+await mainServerClient.getTransactions(serviceToken, params);
+await mainServerClient.chargeBalance(serviceToken, data);
+await mainServerClient.getBalanceSettings(serviceToken);
+await mainServerClient.updateBalanceSettings(serviceToken, data);
 
 // Analytics endpoints
-await mainServerClient.sendAnalyticsEvent(data);
-await mainServerClient.sendAnalyticsBatch(data);
+await mainServerClient.sendAnalyticsEvent(serviceToken, data);
+await mainServerClient.sendAnalyticsBatch(serviceToken, data);
 
 // Generic request
-await mainServerClient.genericRequest<T>(method, endpoint, data);
+await mainServerClient.genericRequest<T>(method, endpoint, serviceToken, data);
 ```
 
 ### Using MainServerClientService
@@ -310,10 +346,10 @@ export class MyService {
     private readonly mainServerClient: MainServerClientService,
   ) {}
 
-  async getUserData() {
+  async getUserData(serviceToken: string) {
     try {
-      // ✅ CORRECT: Use MainServerClientService
-      const result = await this.mainServerClient.getUserProfile();
+      // ✅ CORRECT: Use MainServerClientService with serviceToken
+      const result = await this.mainServerClient.getUserProfile(serviceToken);
       
       if (result.status === 200) {
         return {
@@ -361,9 +397,15 @@ const response = await firstValueFrom(
 ### ✅ CORRECT - Using MainServerClientService
 
 ```typescript
-// ✅ CORRECT
-const result = await this.mainServerClient.getUserProfile();
-// Token is automatically added, errors are handled!
+// ✅ CORRECT - Extract token from request first
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// In controller
+async getProfile(@Req() req: RequestWithToken, @Res() res: Response) {
+  const serviceToken = requireServiceToken(req);
+  const result = await this.mainServerClient.getUserProfile(serviceToken);
+  // Token is passed explicitly, errors are handled!
+}
 ```
 
 ---
@@ -443,7 +485,7 @@ export class MyService {
 
   async getData(userId: number, email?: string) {
     // 1. Get userLogin (REQUIRED)
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -477,7 +519,7 @@ export class MyService {
   }
 
   async createItem(userId: number, dto: CreateDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -514,8 +556,8 @@ export class MyService {
     }
   }
 
-  async getTelegramData(userId: number, telegramUsername: string, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getTelegramData(serviceToken: string, userId: number, telegramUsername: string, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -668,9 +710,9 @@ export class MyModuleService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getItems(userId: number, email?: string) {
-    // 1. Get userLogin
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getItems(serviceToken: string, userId: number, email?: string) {
+    // 1. Get userLogin - serviceToken is first parameter
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -703,8 +745,8 @@ export class MyModuleService {
     }
   }
 
-  async createItem(userId: number, dto: CreateItemDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async createItem(serviceToken: string, userId: number, dto: CreateItemDto, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -744,14 +786,17 @@ export class MyModuleService {
 
 ### Service Creation Rules
 
-1. **Always inject `UserContextService`** to get `userLogin`
-2. **Always inject `N8NWebhookService`** for n8n calls
-3. **Always inject `ConfigService`** for webhook endpoints
-4. **Always get `userLogin`** before calling webhooks
-5. **Always handle errors** with try/catch
-6. **Always return `{ status, data, message }`** format
-7. **Always log errors** with `this.logger.error()`
-8. **Always use English** for error messages
+1. **Always accept `serviceToken`** as first parameter in service methods
+2. **Always pass `serviceToken`** to `UserContextService.getUserLoginFromToken()` as first parameter
+3. **Always pass `serviceToken`** to `MainServerClientService` methods as first parameter
+4. **Always inject `UserContextService`** to get `userLogin`
+5. **Always inject `N8NWebhookService`** for n8n calls
+6. **Always inject `ConfigService`** for webhook endpoints
+7. **Always get `userLogin`** before calling webhooks
+8. **Always handle errors** with try/catch
+9. **Always return `{ status, data, message }`** format
+10. **Always log errors** with `this.logger.error()`
+11. **Always use English** for error messages
 
 ---
 
@@ -780,6 +825,7 @@ import {
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/auth.guard';
 import { RequestWithToken } from '../../auth/interfaces/request-with-token.interface';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 import { MyModuleService } from '../services/my-module.service';
 import { CreateItemDto } from '../dto/create-item.dto';
 
@@ -810,7 +856,8 @@ export class MyModuleController {
         });
       }
 
-      const result = await this.myModuleService.getItems(userId, email);
+      const serviceToken = requireServiceToken(req);
+      const result = await this.myModuleService.getItems(serviceToken, userId, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -939,7 +986,8 @@ export class MyModuleController {
 ```typescript
 // ✅ CORRECT
 async getData(@Req() req: RequestWithToken, @Res() res: Response) {
-  const result = await this.service.getData(req.user.sub);
+  const serviceToken = requireServiceToken(req);
+  const result = await this.service.getData(serviceToken, req.user.sub);
   return res.status(result.status).json(result);
 }
 
@@ -958,7 +1006,7 @@ async getData(@Req() req: RequestWithToken) {
 ```typescript
 async getData(userId: number, email?: string) {
   try {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -1119,8 +1167,8 @@ export class MyService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getItems(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getItems(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -1161,6 +1209,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/auth.guard';
 import { RequestWithToken } from '../../auth/interfaces/request-with-token.interface';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 import { MyService } from '../services/my.service';
 import { CreateItemDto } from '../dto/create-item.dto';
 
@@ -1186,7 +1235,8 @@ export class MyController {
       });
     }
 
-    const result = await this.myService.getItems(userId, email);
+    const serviceToken = requireServiceToken(req);
+    const result = await this.myService.getItems(serviceToken, userId, email);
     return res.status(result.status).json(result);
   }
 
@@ -1209,7 +1259,8 @@ export class MyController {
       });
     }
 
-    const result = await this.myService.createItem(userId, dto, email);
+    const serviceToken = requireServiceToken(req);
+    const result = await this.myService.createItem(serviceToken, userId, dto, email);
     return res.status(result.status).json(result);
   }
 }

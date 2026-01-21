@@ -6,6 +6,16 @@
 
 **This backend service can be cloned and adapted for different projects with new functionality. BUT the SSO authentication mechanism, JWT validation, and main server integration MUST remain unchanged.**
 
+### ⚠️ IMPORTANT: Service Token Management
+
+**Service tokens are NOT stored globally anymore!** After SSO exchange, the token is returned to the frontend and stored in `localStorage`. Each API request must include the token in the `Authorization: Bearer <token>` header. The backend extracts the token from each request and passes it to services.
+
+**Key changes:**
+- `MainServerClientService` methods now require `serviceToken` as first parameter
+- `UserContextService.getUserLoginFromToken()` now requires `serviceToken` as first parameter
+- Use `requireServiceToken(req)` or `extractServiceToken(req)` from `src/auth/utils/extract-token.util.ts` to extract tokens
+- No global token storage - each request uses its own token
+
 ### What can be changed:
 - ✅ Business logic in modules (e.g., `modules/contentzavod/`)
 - ✅ New modules can be added
@@ -49,8 +59,8 @@
 
 1. **`src/auth/auth.service.ts`** - SSO authentication logic
    - `initiateLogin()` - SSO initiation
-   - `handleCallback()` - SSO code exchange
-   - `checkAuth()` - Authentication check
+   - `handleCallback()` - SSO code exchange (returns token to frontend, does NOT store globally)
+   - `checkAuth(serviceToken)` - Authentication check (requires token parameter)
 
 2. **`src/auth/jwt.strategy.ts`** - JWT validation strategy
    - Token validation logic
@@ -78,8 +88,9 @@
 
 1. **`src/services/main-server-client.service.ts`** - Main server client
    - All methods for main server communication
-   - Token management
+   - **IMPORTANT:** All methods now require `serviceToken` as first parameter (no global token storage)
    - Error handling
+   - **DO NOT** use `setToken()`, `getToken()`, or `clearToken()` - these methods are removed
 
 2. **`src/services/balance-api.service.ts`** - Balance API client
    - Balance operations
@@ -104,6 +115,10 @@
 
 3. **`src/filters/http-exception.filter.ts`** - Global exception filter
 
+4. **`src/auth/utils/extract-token.util.ts`** - Service token extraction utilities
+   - `extractServiceToken(req)` - Extract token or return null
+   - `requireServiceToken(req)` - Extract token or throw error
+
 ## ✅ ALLOWED
 
 ### ✅ Create:
@@ -122,22 +137,31 @@
 ### ✅ Use:
 - `JwtAuthGuard` for protecting routes
 - `RequestWithToken` interface for authenticated requests
-- `UserContextService` for getting user login
+- `requireServiceToken()` or `extractServiceToken()` from `src/auth/utils/extract-token.util.ts` to extract service token
+- `UserContextService.getUserLoginFromToken(serviceToken, userId, email)` - **serviceToken is first parameter**
 - `N8NWebhookService` for calling n8n webhooks
-- `MainServerClientService` for main server communication
+- `MainServerClientService` methods with `serviceToken` as first parameter:
+  - `getUserProfile(serviceToken)`
+  - `getUserBalances(serviceToken)`
+  - `chargeBalance(serviceToken, data)`
+  - `sendAnalyticsEvent(serviceToken, data)`
+  - All other methods follow the same pattern
 
 ## ⚠️ Important Rules
 
 1. **Always use `JwtAuthGuard`** for protected routes
 2. **Always use `@ApiBearerAuth()`** for Swagger documentation
 3. **Always use `RequestWithToken`** interface for `@Req()` in controllers
-4. **Always return `{ status, data, message }`** format
-5. **Always use `UserContextService`** to get `userLogin` for n8n calls
-6. **Always use `N8NWebhookService`** for calling n8n webhooks (not direct HTTP calls)
-7. **Always use `MainServerClientService`** for main server communication
-8. **Never modify authentication logic** in `src/auth/`
-9. **Never modify JWT validation** in `src/auth/jwt.strategy.ts`
-10. **Never modify main server client** in `src/services/main-server-client.service.ts`
+4. **Always extract service token** using `requireServiceToken(req)` or `extractServiceToken(req)` from `src/auth/utils/extract-token.util.ts`
+5. **Always pass `serviceToken`** as first parameter to `MainServerClientService` methods
+6. **Always pass `serviceToken`** as first parameter to `UserContextService.getUserLoginFromToken()`
+7. **Always return `{ status, data, message }`** format
+8. **Always use `UserContextService`** to get `userLogin` for n8n calls
+9. **Always use `N8NWebhookService`** for calling n8n webhooks (not direct HTTP calls)
+10. **Always use `MainServerClientService`** for main server communication
+11. **Never modify authentication logic** in `src/auth/`
+12. **Never modify JWT validation** in `src/auth/jwt.strategy.ts`
+13. **Never modify main server client** in `src/services/main-server-client.service.ts`
 
 ## 🔌 n8n Integration
 
@@ -179,15 +203,18 @@ const author = await this.n8nWebhook.callWebhook<any>({
 ## 📋 Mandatory Rules
 
 1. **Always integrate authentication** through `JwtAuthGuard` on protected routes
-2. **Always use `UserContextService`** to get `userLogin` from token
-3. **Always use `N8NWebhookService`** for n8n webhook calls
-4. **Always use `MainServerClientService`** for main server communication
-5. **Always return consistent response format** `{ status, data, message }`
-6. **Always handle errors** properly with try/catch
-7. **Always use DTOs** for request validation
-8. **Always document endpoints** with Swagger decorators
-9. **Never modify authentication logic** in `src/auth/`
-10. **Never bypass JWT validation**
+2. **Always extract service token** using `requireServiceToken(req)` before calling services
+3. **Always pass `serviceToken`** as first parameter to `MainServerClientService` methods
+4. **Always pass `serviceToken`** as first parameter to `UserContextService.getUserLoginFromToken()`
+5. **Always use `UserContextService`** to get `userLogin` from token
+6. **Always use `N8NWebhookService`** for n8n webhook calls
+7. **Always use `MainServerClientService`** for main server communication
+8. **Always return consistent response format** `{ status, data, message }`
+9. **Always handle errors** properly with try/catch
+10. **Always use DTOs** for request validation
+11. **Always document endpoints** with Swagger decorators
+12. **Never modify authentication logic** in `src/auth/`
+13. **Never bypass JWT validation**
 
 ## 🎯 Quick Checklist
 
@@ -195,6 +222,9 @@ Before adding a new feature:
 
 - [ ] **Authentication guard added** (`@UseGuards(JwtAuthGuard)`)
 - [ ] **Swagger documentation added** (`@ApiBearerAuth()`, `@ApiOperation()`, `@ApiResponse()`)
+- [ ] **Service token extracted** using `requireServiceToken(req)` or `extractServiceToken(req)`
+- [ ] **Service token passed** to all `MainServerClientService` methods as first parameter
+- [ ] **Service token passed** to `UserContextService.getUserLoginFromToken()` as first parameter
 - [ ] **DTO created** for request validation
 - [ ] **UserContextService used** to get `userLogin`
 - [ ] **N8NWebhookService used** for n8n calls (if needed)

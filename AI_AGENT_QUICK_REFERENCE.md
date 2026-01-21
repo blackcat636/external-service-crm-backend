@@ -27,6 +27,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/auth.guard';
 import { RequestWithToken } from '../../auth/interfaces/request-with-token.interface';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 
 @ApiTags('MyModule')
 @Controller('operations/my-module')
@@ -48,7 +49,10 @@ export class MyController {
       });
     }
 
-    // Ваша логіка тут
+    // Витягнути service токен з заголовка Authorization
+    const serviceToken = requireServiceToken(req);
+
+    // Ваша логіка тут - передайте serviceToken в сервіси
     
     return res.status(200).json({
       status: 200,
@@ -58,34 +62,59 @@ export class MyController {
 }
 ```
 
+### Витягування Service Token
+
+**Helper функції** для витягування service токену з запиту:
+
+```typescript
+import { extractServiceToken, requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// Опціональний токен (повертає null якщо не знайдено)
+const serviceToken = extractServiceToken(req);
+if (serviceToken) {
+  // Використати токен
+}
+
+// Обов'язковий токен (викидає HttpException якщо не знайдено)
+const serviceToken = requireServiceToken(req);
+// Використати токен - гарантовано присутній
+```
+
 ## 🔌 Спілкування з основним сервером
 
-### ⚠️ ВАЖЛИВО: Завжди використовуйте MainServerClientService!
+### ⚠️ ВАЖЛИВО: Завжди використовуйте MainServerClientService з service токеном!
 
 ```typescript
 import { MainServerClientService } from '../../services/main-server-client.service';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 
 constructor(
   private readonly mainServerClient: MainServerClientService,
 ) {}
 
-// Отримати профіль користувача
-const result = await this.mainServerClient.getUserProfile();
-
-// Отримати баланси
-const balances = await this.mainServerClient.getUserBalances();
-
-// Списати з балансу
-const chargeResult = await this.mainServerClient.chargeBalance({
-  amount: 100,
-  currencyCode: 'USD',
-  referenceId: 'REF123',
-  referenceType: 'service',
-  description: 'Payment',
-});
-
-// Генеральний запит
-const data = await this.mainServerClient.genericRequest('GET', '/endpoint');
+// В методі контролера
+async getProfile(@Req() req: RequestWithToken, @Res() res: Response) {
+  // Витягнути service токен з заголовка Authorization
+  const serviceToken = requireServiceToken(req);
+  
+  // Отримати профіль користувача (serviceToken є першим параметром)
+  const result = await this.mainServerClient.getUserProfile(serviceToken);
+  
+  // Отримати баланси
+  const balances = await this.mainServerClient.getUserBalances(serviceToken);
+  
+  // Списати з балансу
+  const chargeResult = await this.mainServerClient.chargeBalance(serviceToken, {
+    amount: 100,
+    currencyCode: 'USD',
+    referenceId: 'REF123',
+    referenceType: 'service',
+    description: 'Payment',
+  });
+  
+  // Генеральний запит
+  const data = await this.mainServerClient.genericRequest('GET', '/endpoint', serviceToken);
+}
 ```
 
 ### ❌ НЕ використовуйте HttpService напряму!
@@ -97,6 +126,23 @@ const response = await firstValueFrom(
     headers: { Authorization: `Bearer ${token}` },
   }),
 );
+```
+
+### ⚠️ ВАЖЛИВО: Управління Service Token
+
+**Service токени більше НЕ зберігаються глобально!** Кожен запит повинен витягувати токен з заголовка `Authorization`:
+
+```typescript
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// В контролері
+async getData(@Req() req: RequestWithToken, @Res() res: Response) {
+  // Витягнути токен з запиту
+  const serviceToken = requireServiceToken(req);
+  
+  // Передати токен в методи сервісів
+  const result = await this.mainServerClient.getUserProfile(serviceToken);
+}
 ```
 
 ## 🔗 n8n Інтеграція
@@ -113,9 +159,9 @@ constructor(
   private readonly configService: ConfigService,
 ) {}
 
-async getData(userId: number, email?: string) {
-  // 1. Отримати userLogin (ОБОВ'ЯЗКОВО)
-  const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+async getData(serviceToken: string, userId: number, email?: string) {
+  // 1. Отримати userLogin (ОБОВ'ЯЗКОВО) - serviceToken є першим параметром
+  const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
   if (!userLogin) {
     throw new HttpException(
       'Unable to determine user login',
@@ -218,8 +264,8 @@ export class MyService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getItems(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getItems(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -298,9 +344,10 @@ export class CreateItemDto {
 - ✅ Додавати нові ендпоінти
 - ✅ Модифікувати n8n webhook ендпоінти (через env vars)
 - ✅ Змінювати бізнес-логіку в модулях
-- ✅ Використовувати `UserContextService` для отримання `userLogin`
+- ✅ Використовувати `requireServiceToken()` або `extractServiceToken()` для витягування токенів
+- ✅ Використовувати `UserContextService.getUserLoginFromToken(serviceToken, userId, email)` для отримання `userLogin`
 - ✅ Використовувати `N8NWebhookService` для n8n викликів
-- ✅ Використовувати `MainServerClientService` для викликів основного сервера
+- ✅ Використовувати методи `MainServerClientService` з параметром `serviceToken` для викликів основного сервера
 
 ## 📚 Повна документація
 

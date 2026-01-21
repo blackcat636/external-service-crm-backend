@@ -13,8 +13,8 @@ export class DashboardService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getDashboardStats(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getDashboardStats(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',

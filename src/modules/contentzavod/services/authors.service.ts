@@ -16,8 +16,8 @@ export class AuthorsService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getAuthors(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getAuthors(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -48,12 +48,12 @@ export class AuthorsService {
     }
   }
 
-  async addAuthor(userId: number, dto: AddAuthorDto, email?: string) {
+  async addAuthor(serviceToken: string, userId: number, dto: AddAuthorDto, email?: string) {
     if (!isValidInstagramURL(dto.url)) {
       throw new HttpException('Invalid Instagram profile URL', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -83,8 +83,8 @@ export class AuthorsService {
     }
   }
 
-  async deleteAuthor(userId: number, dto: DeleteAuthorDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async deleteAuthor(serviceToken: string, userId: number, dto: DeleteAuthorDto, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',

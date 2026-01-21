@@ -15,7 +15,7 @@ export class AnalyticsService {
     private readonly mainServerClient: MainServerClientService,
   ) {}
 
-  async sendEvent(event: AnalyticsEvent): Promise<any> {
+  async sendEvent(serviceToken: string, event: AnalyticsEvent): Promise<any> {
     try {
       const eventData = {
         ...event,
@@ -23,7 +23,7 @@ export class AnalyticsService {
       };
 
       this.logger.log(`Sending analytics event: ${event.eventType}`);
-      const result = await this.mainServerClient.sendAnalyticsEvent(eventData);
+      const result = await this.mainServerClient.sendAnalyticsEvent(serviceToken, eventData);
 
       return result;
     } catch (error) {
@@ -35,7 +35,7 @@ export class AnalyticsService {
     }
   }
 
-  async sendBatch(events: AnalyticsEvent[]): Promise<any> {
+  async sendBatch(serviceToken: string, events: AnalyticsEvent[]): Promise<any> {
     try {
       const eventsWithTimestamp = events.map((event) => ({
         ...event,
@@ -43,7 +43,7 @@ export class AnalyticsService {
       }));
 
       this.logger.log(`Sending batch of ${events.length} analytics events`);
-      const result = await this.mainServerClient.sendAnalyticsBatch({
+      const result = await this.mainServerClient.sendAnalyticsBatch(serviceToken, {
         events: eventsWithTimestamp,
       });
 

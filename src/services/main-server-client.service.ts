@@ -14,7 +14,6 @@ export interface MainServerResponse<T = any> {
 export class MainServerClientService {
   private readonly logger = new Logger(MainServerClientService.name);
   private readonly baseUrl: string;
-  private serviceToken: string | null = null;
 
   constructor(
     private readonly httpService: HttpService,
@@ -26,28 +25,15 @@ export class MainServerClientService {
     }
   }
 
-  setToken(token: string): void {
-    this.serviceToken = token;
-    this.logger.log('Service token set');
-  }
-
-  getToken(): string | null {
-    return this.serviceToken;
-  }
-
-  clearToken(): void {
-    this.serviceToken = null;
-    this.logger.log('Service token cleared');
-  }
-
   private async request<T>(
     method: string,
     endpoint: string,
+    serviceToken: string,
     data?: any,
   ): Promise<MainServerResponse<T>> {
-    if (!this.serviceToken) {
+    if (!serviceToken) {
       throw new HttpException(
-        'Service token not set. Authentication required.',
+        'Service token is required. Authentication required.',
         HttpStatus.UNAUTHORIZED,
       );
     }
@@ -59,7 +45,7 @@ export class MainServerClientService {
           method,
           url,
           headers: {
-            Authorization: `Bearer ${this.serviceToken}`,
+            Authorization: `Bearer ${serviceToken}`,
             'Content-Type': 'application/json',
           },
           data,
@@ -83,7 +69,6 @@ export class MainServerClientService {
         );
 
         if (status === HttpStatus.UNAUTHORIZED) {
-          this.clearToken();
           throw new HttpException(
             errorData?.message || 'Authentication failed',
             HttpStatus.UNAUTHORIZED,
@@ -107,65 +92,66 @@ export class MainServerClientService {
   }
 
   // User endpoints
-  async getUserProfile(): Promise<MainServerResponse> {
-    return this.request('GET', '/users/profile');
+  async getUserProfile(serviceToken: string): Promise<MainServerResponse> {
+    return this.request('GET', '/users/profile', serviceToken);
   }
 
-  async updateUserProfile(data: any): Promise<MainServerResponse> {
-    return this.request('PUT', '/users/profile', data);
+  async updateUserProfile(serviceToken: string, data: any): Promise<MainServerResponse> {
+    return this.request('PUT', '/users/profile', serviceToken, data);
   }
 
-  async getUserStructure(): Promise<MainServerResponse> {
-    return this.request('GET', '/users/structure');
+  async getUserStructure(serviceToken: string): Promise<MainServerResponse> {
+    return this.request('GET', '/users/structure', serviceToken);
   }
 
-  async getUserPermissions(): Promise<MainServerResponse> {
-    return this.request('GET', '/users/my-permissions');
+  async getUserPermissions(serviceToken: string): Promise<MainServerResponse> {
+    return this.request('GET', '/users/my-permissions', serviceToken);
   }
 
   // Balance endpoints
-  async getUserBalances(): Promise<MainServerResponse> {
-    return this.request('GET', '/balance');
+  async getUserBalances(serviceToken: string): Promise<MainServerResponse> {
+    return this.request('GET', '/balance', serviceToken);
   }
 
-  async getBalanceByCurrency(currency: string): Promise<MainServerResponse> {
-    return this.request('GET', `/balance/${currency}`);
+  async getBalanceByCurrency(serviceToken: string, currency: string): Promise<MainServerResponse> {
+    return this.request('GET', `/balance/${currency}`, serviceToken);
   }
 
-  async getTransactions(params?: any): Promise<MainServerResponse> {
+  async getTransactions(serviceToken: string, params?: any): Promise<MainServerResponse> {
     const queryString = params
       ? '?' + new URLSearchParams(params).toString()
       : '';
-    return this.request('GET', `/balance/transactions${queryString}`);
+    return this.request('GET', `/balance/transactions${queryString}`, serviceToken);
   }
 
-  async chargeBalance(data: any): Promise<MainServerResponse> {
-    return this.request('POST', '/balance/charge', data);
+  async chargeBalance(serviceToken: string, data: any): Promise<MainServerResponse> {
+    return this.request('POST', '/balance/charge', serviceToken, data);
   }
 
-  async getBalanceSettings(): Promise<MainServerResponse> {
-    return this.request('GET', '/balance/settings');
+  async getBalanceSettings(serviceToken: string): Promise<MainServerResponse> {
+    return this.request('GET', '/balance/settings', serviceToken);
   }
 
-  async updateBalanceSettings(data: any): Promise<MainServerResponse> {
-    return this.request('PUT', '/balance/settings', data);
+  async updateBalanceSettings(serviceToken: string, data: any): Promise<MainServerResponse> {
+    return this.request('PUT', '/balance/settings', serviceToken, data);
   }
 
   // Analytics endpoints
-  async sendAnalyticsEvent(data: any): Promise<MainServerResponse> {
-    return this.request('POST', '/analytics/events', data);
+  async sendAnalyticsEvent(serviceToken: string, data: any): Promise<MainServerResponse> {
+    return this.request('POST', '/analytics/events', serviceToken, data);
   }
 
-  async sendAnalyticsBatch(data: any): Promise<MainServerResponse> {
-    return this.request('POST', '/analytics/events/batch', data);
+  async sendAnalyticsBatch(serviceToken: string, data: any): Promise<MainServerResponse> {
+    return this.request('POST', '/analytics/events/batch', serviceToken, data);
   }
 
   // Generic request method
   async genericRequest<T>(
     method: string,
     endpoint: string,
+    serviceToken: string,
     data?: any,
   ): Promise<MainServerResponse<T>> {
-    return this.request<T>(method, endpoint, data);
+    return this.request<T>(method, endpoint, serviceToken, data);
   }
 }

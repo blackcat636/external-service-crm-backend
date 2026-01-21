@@ -15,12 +15,12 @@ export class TelegramService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getChannels(userId: number, telegramUsername: string, email?: string) {
+  async getChannels(serviceToken: string, userId: number, telegramUsername: string, email?: string) {
     if (!telegramUsername) {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -53,12 +53,12 @@ export class TelegramService {
     }
   }
 
-  async deleteChannel(userId: number, dto: DeleteChannelDto, telegramUsername: string, email?: string) {
+  async deleteChannel(serviceToken: string, userId: number, dto: DeleteChannelDto, telegramUsername: string, email?: string) {
     if (!telegramUsername) {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -92,12 +92,12 @@ export class TelegramService {
     }
   }
 
-  async getPosts(userId: number, telegramUsername: string, email?: string) {
+  async getPosts(serviceToken: string, userId: number, telegramUsername: string, email?: string) {
     if (!telegramUsername) {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -130,12 +130,12 @@ export class TelegramService {
     }
   }
 
-  async makePostTextUnique(userId: number, dto: MakeTextUniqueDto, telegramUsername: string, email?: string) {
+  async makePostTextUnique(serviceToken: string, userId: number, dto: MakeTextUniqueDto, telegramUsername: string, email?: string) {
     if (!telegramUsername) {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',

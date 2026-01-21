@@ -21,6 +21,7 @@ import {
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../../auth/auth.guard';
 import { RequestWithToken } from '../../../auth/interfaces/request-with-token.interface';
+import { extractServiceToken } from '../../../auth/utils/extract-token.util';
 import { AuthorsService } from '../services/authors.service';
 import { VideosService } from '../services/videos.service';
 import { TelegramService } from '../services/telegram.service';
@@ -65,7 +66,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.authorsService.getAuthors(userId, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.authorsService.getAuthors(serviceToken, userId, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -97,7 +105,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.authorsService.addAuthor(userId, dto, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.authorsService.addAuthor(serviceToken, userId, dto, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -129,7 +144,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.authorsService.deleteAuthor(userId, dto, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.authorsService.deleteAuthor(serviceToken, userId, dto, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -157,7 +179,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.videosService.getVideos(userId, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.videosService.getVideos(serviceToken, userId, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -189,7 +218,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.videosService.transcribeVideo(userId, dto, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.videosService.transcribeVideo(serviceToken, userId, dto, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -219,7 +255,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.videosService.makeTextUnique(userId, dto);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.videosService.makeTextUnique(serviceToken, userId, dto);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -251,7 +294,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.videosService.startVideoGeneration(userId, dto, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.videosService.startVideoGeneration(serviceToken, userId, dto, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -290,7 +340,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.videosService.getVideoGenerationStatus(userId, jobId, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.videosService.getVideoGenerationStatus(serviceToken, userId, jobId, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -318,7 +375,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.dashboardService.getDashboardStats(userId, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.dashboardService.getDashboardStats(serviceToken, userId, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -352,7 +416,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.telegramService.getChannels(userId, telegramUsername, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.telegramService.getChannels(serviceToken, userId, telegramUsername, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -386,7 +457,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.telegramService.deleteChannel(userId, dto, telegramUsername, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.telegramService.deleteChannel(serviceToken, userId, dto, telegramUsername, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -419,7 +497,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.telegramService.getPosts(userId, telegramUsername, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.telegramService.getPosts(serviceToken, userId, telegramUsername, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(
@@ -491,7 +576,14 @@ export class ContentZavodController {
         });
       }
 
-      const result = await this.editWithAIService.editText(userId, dto, email);
+      const serviceToken = extractServiceToken(req);
+      if (!serviceToken) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Service token is required',
+        });
+      }
+      const result = await this.editWithAIService.editText(serviceToken, userId, dto, email);
       return res.status(result.status).json(result);
     } catch (error) {
       throw new HttpException(

@@ -16,6 +16,7 @@ import {
 import { Response, Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { SsoExchangeDto } from '../dto/sso-exchange.dto';
+import { extractServiceToken } from '../auth/utils/extract-token.util';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -73,8 +74,19 @@ export class AuthController {
   @Get('check')
   @ApiOperation({ summary: 'Check authentication status' })
   @ApiResponse({ status: 200, description: 'Authentication status' })
-  async checkAuth(@Res() res: Response) {
-    const isAuthenticated = await this.authService.checkAuth();
+  async checkAuth(@Req() req: Request, @Res() res: Response) {
+    const serviceToken = extractServiceToken(req);
+    
+    if (!serviceToken) {
+      return res.status(200).json({
+        status: 200,
+        data: {
+          authenticated: false,
+        },
+      });
+    }
+
+    const isAuthenticated = await this.authService.checkAuth(serviceToken);
     return res.status(200).json({
       status: 200,
       data: {

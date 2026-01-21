@@ -27,6 +27,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/auth.guard';
 import { RequestWithToken } from '../../auth/interfaces/request-with-token.interface';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 
 @ApiTags('MyModule')
 @Controller('operations/my-module')
@@ -48,7 +49,10 @@ export class MyController {
       });
     }
 
-    // Your logic here
+    // Extract service token from Authorization header
+    const serviceToken = requireServiceToken(req);
+
+    // Your logic here - pass serviceToken to services
     
     return res.status(200).json({
       status: 200,
@@ -58,34 +62,59 @@ export class MyController {
 }
 ```
 
+### Service Token Extraction
+
+**Helper functions** for extracting service token from request:
+
+```typescript
+import { extractServiceToken, requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// Optional token (returns null if not found)
+const serviceToken = extractServiceToken(req);
+if (serviceToken) {
+  // Use token
+}
+
+// Required token (throws HttpException if not found)
+const serviceToken = requireServiceToken(req);
+// Use token - guaranteed to be present
+```
+
 ## 🔌 Main Server Communication
 
-### ⚠️ IMPORTANT: Always use MainServerClientService!
+### ⚠️ IMPORTANT: Always use MainServerClientService with service token!
 
 ```typescript
 import { MainServerClientService } from '../../services/main-server-client.service';
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
 
 constructor(
   private readonly mainServerClient: MainServerClientService,
 ) {}
 
-// Get user profile
-const result = await this.mainServerClient.getUserProfile();
-
-// Get balances
-const balances = await this.mainServerClient.getUserBalances();
-
-// Charge balance
-const chargeResult = await this.mainServerClient.chargeBalance({
-  amount: 100,
-  currencyCode: 'USD',
-  referenceId: 'REF123',
-  referenceType: 'service',
-  description: 'Payment',
-});
-
-// Generic request
-const data = await this.mainServerClient.genericRequest('GET', '/endpoint');
+// In controller method
+async getProfile(@Req() req: RequestWithToken, @Res() res: Response) {
+  // Extract service token from Authorization header
+  const serviceToken = requireServiceToken(req);
+  
+  // Get user profile (serviceToken is first parameter)
+  const result = await this.mainServerClient.getUserProfile(serviceToken);
+  
+  // Get balances
+  const balances = await this.mainServerClient.getUserBalances(serviceToken);
+  
+  // Charge balance
+  const chargeResult = await this.mainServerClient.chargeBalance(serviceToken, {
+    amount: 100,
+    currencyCode: 'USD',
+    referenceId: 'REF123',
+    referenceType: 'service',
+    description: 'Payment',
+  });
+  
+  // Generic request
+  const data = await this.mainServerClient.genericRequest('GET', '/endpoint', serviceToken);
+}
 ```
 
 ### ❌ DO NOT use HttpService directly!
@@ -97,6 +126,23 @@ const response = await firstValueFrom(
     headers: { Authorization: `Bearer ${token}` },
   }),
 );
+```
+
+### ⚠️ IMPORTANT: Service Token Management
+
+**Service tokens are NOT stored globally anymore!** Each request must extract the token from the `Authorization` header:
+
+```typescript
+import { requireServiceToken } from '../../auth/utils/extract-token.util';
+
+// In controller
+async getData(@Req() req: RequestWithToken, @Res() res: Response) {
+  // Extract token from request
+  const serviceToken = requireServiceToken(req);
+  
+  // Pass token to service methods
+  const result = await this.mainServerClient.getUserProfile(serviceToken);
+}
 ```
 
 ## 🔗 n8n Integration
@@ -113,9 +159,9 @@ constructor(
   private readonly configService: ConfigService,
 ) {}
 
-async getData(userId: number, email?: string) {
-  // 1. Get userLogin (REQUIRED)
-  const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+async getData(serviceToken: string, userId: number, email?: string) {
+  // 1. Get userLogin (REQUIRED) - serviceToken is first parameter
+  const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
   if (!userLogin) {
     throw new HttpException(
       'Unable to determine user login',
@@ -218,8 +264,8 @@ export class MyService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getItems(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getItems(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -298,9 +344,10 @@ export class CreateItemDto {
 - ✅ Add new endpoints
 - ✅ Modify n8n webhook endpoints (via env vars)
 - ✅ Change business logic in modules
-- ✅ Use `UserContextService` to get `userLogin`
+- ✅ Use `requireServiceToken()` or `extractServiceToken()` to extract tokens
+- ✅ Use `UserContextService.getUserLoginFromToken(serviceToken, userId, email)` to get `userLogin`
 - ✅ Use `N8NWebhookService` for n8n calls
-- ✅ Use `MainServerClientService` for main server calls
+- ✅ Use `MainServerClientService` methods with `serviceToken` parameter for main server calls
 
 ## 📚 Full Documentation
 

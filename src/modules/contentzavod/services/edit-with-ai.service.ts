@@ -14,8 +14,8 @@ export class EditWithAIService {
     private readonly configService: ConfigService,
   ) {}
 
-  async editText(userId: number, dto: EditWithAIDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async editText(serviceToken: string, userId: number, dto: EditWithAIDto, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',

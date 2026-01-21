@@ -16,8 +16,8 @@ export class VideosService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getVideos(userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getVideos(serviceToken: string, userId: number, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -50,8 +50,8 @@ export class VideosService {
     }
   }
 
-  async transcribeVideo(userId: number, dto: TranscribeVideoDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async transcribeVideo(serviceToken: string, userId: number, dto: TranscribeVideoDto, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -80,8 +80,8 @@ export class VideosService {
     }
   }
 
-  async makeTextUnique(userId: number, dto: MakeTextUniqueDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async makeTextUnique(serviceToken: string, userId: number, dto: MakeTextUniqueDto, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -111,7 +111,7 @@ export class VideosService {
   }
 
   async startVideoGeneration(userId: number, dto: StartVideoGenerationDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
@@ -155,8 +155,8 @@ export class VideosService {
     }
   }
 
-  async getVideoGenerationStatus(userId: number, jobId: string, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(userId, email);
+  async getVideoGenerationStatus(serviceToken: string, userId: number, jobId: string, email?: string) {
+    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
     if (!userLogin) {
       throw new HttpException(
         'Unable to determine user login',
