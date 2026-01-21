@@ -8,7 +8,7 @@ export interface N8NWebhookOptions {
   endpoint: string;
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
-  userLogin: string;
+  userId: number;
   telegramUsername?: string;
 }
 
@@ -31,7 +31,7 @@ export class N8NWebhookService {
   }
 
   async callWebhook<T>(options: N8NWebhookOptions): Promise<T> {
-    const { endpoint, method = 'POST', body = {}, userLogin, telegramUsername } = options;
+    const { endpoint, method = 'POST', body = {}, userId, telegramUsername } = options;
 
     if (!this.baseUrl) {
       throw new HttpException(
@@ -53,7 +53,7 @@ export class N8NWebhookService {
 
     try {
       if (method === 'GET') {
-        const params = new URLSearchParams({ userLogin });
+        const params = new URLSearchParams({ userId: userId.toString() });
         if (telegramUsername) {
           params.set('username', telegramUsername);
         }
@@ -66,7 +66,7 @@ export class N8NWebhookService {
         return response.data;
       } else {
         // POST method
-        const requestBody: Record<string, unknown> = { ...body, userLogin };
+        const requestBody: Record<string, unknown> = { ...body, userId };
         if (telegramUsername) {
           requestBody.username = telegramUsername;
         }

@@ -1,7 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { N8NWebhookService } from './n8n-webhook.service';
-import { UserContextService } from './user-context.service';
 import { isValidInstagramURL } from '../utils/instagram.utils';
 import { AddAuthorDto } from '../dto/add-author.dto';
 import { DeleteAuthorDto } from '../dto/delete-author.dto';
@@ -12,19 +11,10 @@ export class AuthorsService {
 
   constructor(
     private readonly n8nWebhook: N8NWebhookService,
-    private readonly userContext: UserContextService,
     private readonly configService: ConfigService,
   ) {}
 
   async getAuthors(serviceToken: string, userId: number, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_GET_AUTHORS_WEBHOOK') || '/webhook/get-authors';
 
@@ -32,7 +22,7 @@ export class AuthorsService {
       const authors = await this.n8nWebhook.callWebhook<any[]>({
         endpoint: webhookEndpoint,
         method: 'POST',
-        userLogin,
+        userId,
       });
 
       return {
@@ -53,14 +43,6 @@ export class AuthorsService {
       throw new HttpException('Invalid Instagram profile URL', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_ADD_AUTHOR_WEBHOOK') || '/webhook/add-author';
 
@@ -69,7 +51,7 @@ export class AuthorsService {
         endpoint: webhookEndpoint,
         method: 'POST',
         body: { instagramUrl: dto.url },
-        userLogin,
+        userId,
       });
 
       return {
@@ -84,14 +66,6 @@ export class AuthorsService {
   }
 
   async deleteAuthor(serviceToken: string, userId: number, dto: DeleteAuthorDto, email?: string) {
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_DELETE_AUTHOR_WEBHOOK') ||
       '/webhook/delete-author';
@@ -101,7 +75,7 @@ export class AuthorsService {
         endpoint: webhookEndpoint,
         method: 'POST',
         body: { id: dto.id },
-        userLogin,
+        userId,
       });
 
       return {

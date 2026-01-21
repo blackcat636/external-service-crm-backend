@@ -1,7 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { N8NWebhookService } from './n8n-webhook.service';
-import { UserContextService } from './user-context.service';
 import { DeleteChannelDto } from '../dto/delete-channel.dto';
 import { MakeTextUniqueDto } from '../dto/make-text-unique.dto';
 
@@ -11,21 +10,12 @@ export class TelegramService {
 
   constructor(
     private readonly n8nWebhook: N8NWebhookService,
-    private readonly userContext: UserContextService,
     private readonly configService: ConfigService,
   ) {}
 
   async getChannels(serviceToken: string, userId: number, telegramUsername: string, email?: string) {
     if (!telegramUsername) {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
-    }
-
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
     }
 
     const webhookEndpoint =
@@ -36,7 +26,7 @@ export class TelegramService {
       const channels = await this.n8nWebhook.callWebhook<any[]>({
         endpoint: webhookEndpoint,
         method: 'GET',
-        userLogin,
+        userId,
         telegramUsername,
       });
 
@@ -58,14 +48,6 @@ export class TelegramService {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_DELETE_TELEGRAM_CHANNEL_WEBHOOK') ||
       '/webhook/delete-group-telegram';
@@ -75,7 +57,7 @@ export class TelegramService {
         endpoint: webhookEndpoint,
         method: 'POST',
         body: { id: dto.id },
-        userLogin,
+        userId,
         telegramUsername,
       });
 
@@ -97,14 +79,6 @@ export class TelegramService {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_GET_TELEGRAM_POSTS_WEBHOOK') ||
       '/webhook/get-the-posts';
@@ -113,7 +87,7 @@ export class TelegramService {
       const posts = await this.n8nWebhook.callWebhook<any[]>({
         endpoint: webhookEndpoint,
         method: 'GET',
-        userLogin,
+        userId,
         telegramUsername,
       });
 
@@ -135,14 +109,6 @@ export class TelegramService {
       throw new HttpException('Telegram username is required', HttpStatus.BAD_REQUEST);
     }
 
-    const userLogin = await this.userContext.getUserLoginFromToken(serviceToken, userId, email);
-    if (!userLogin) {
-      throw new HttpException(
-        'Unable to determine user login',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
     const webhookEndpoint =
       this.configService.get<string>('N8N_UNIQUE_TELEGRAM_WEBHOOK') ||
       '/webhook/unique-zavod-telegram';
@@ -152,7 +118,7 @@ export class TelegramService {
         endpoint: webhookEndpoint,
         method: 'POST',
         body: { text: dto.text },
-        userLogin,
+        userId,
         telegramUsername,
       });
 
